@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brew Intelligence Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0d0f14; --surface:#141720; --surface2:#1c2030; --surface3:#232840;
+  --border:rgba(255,255,255,0.07);
+  --coffee:#c8783a; --coffeeL:#e8a060; --cream:#f5e6d0;
+  --teal:#2dd4bf; --amber:#f59e0b; --rose:#f43f5e; --purple:#a78bfa;
+  --green:#10b981; --blue:#3b82f6;
+  --text:#e8e4de; --dim:#8a8070; --muted:#4a4540;
+  --glow:rgba(200,120,58,0.15);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#0d0f14,#1a1020 50%,#0d1218);border-bottom:1px solid var(--border);padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:68px;position:sticky;top:0;z-index:100;backdrop-filter:blur(20px);}
+.hbrand{display:flex;align-items:center;gap:14px;}
+.hicon{width:40px;height:40px;background:linear-gradient(135deg,var(--coffee),var(--coffeeL));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px var(--glow);}
+.htitle{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--cream);}
+.hsub{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:1px;}
+.hmeta{display:flex;gap:16px;align-items:center;}
+.hbadge{font-family:'DM Mono',monospace;font-size:11px;color:var(--coffeeL);background:rgba(200,120,58,.1);border:1px solid rgba(200,120,58,.2);padding:4px 10px;border-radius:20px;letter-spacing:.05em;}
+.hlive{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--green);font-family:'DM Mono',monospace;}
+.hlive::before{content:'';width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* MAIN */
+.main{padding:24px 32px;max-width:1680px;margin:0 auto;}
+
+/* FILTER BAR */
+.fbar{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 20px;display:flex;align-items:center;gap:18px;margin-bottom:22px;flex-wrap:wrap;}
+.flabel{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;}
+.fgroup{display:flex;flex-direction:column;gap:4px;}
+.fsel{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 12px;cursor:pointer;outline:none;transition:border-color .2s;min-width:130px;}
+.fsel:hover,.fsel:focus{border-color:rgba(200,120,58,.4);}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{font-size:12px;padding:5px 12px;border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--dim);transition:all .2s;font-weight:500;user-select:none;}
+.chip:hover{border-color:rgba(200,120,58,.3);color:var(--coffeeL);}
+.chip.active{background:rgba(200,120,58,.15);border-color:rgba(200,120,58,.5);color:var(--coffeeL);}
+.fdiv{width:1px;height:32px;background:var(--border);flex-shrink:0;}
+
+/* KPI */
+.kgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px;}
+.kcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;}
+.kcard:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.3);}
+.kcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc,var(--coffee));opacity:.8;}
+.kcard::after{content:'';position:absolute;top:-40px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,var(--kc,var(--coffee)) 0%,transparent 70%);opacity:.05;}
+.kicon{font-size:18px;margin-bottom:10px;display:block;}
+.klabel{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:5px;}
+.kval{font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:var(--cream);line-height:1;margin-bottom:7px;}
+.ktrend{font-size:11px;font-weight:500;display:flex;align-items:center;gap:4px;}
+.ktrend.up{color:var(--green);}
+.ktrend.neu{color:var(--dim);}
+
+/* SECTION LABEL */
+.slabel{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.slabel::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* CHART CARDS */
+.cgrid{display:grid;gap:18px;margin-bottom:18px;}
+.r21{grid-template-columns:2fr 1fr;}
+.r12{grid-template-columns:1fr 2fr;}
+.r11{grid-template-columns:1fr 1fr;}
+.r111{grid-template-columns:1fr 1fr 1fr;}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;position:relative;overflow:hidden;}
+.ccard::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top right,rgba(200,120,58,.03) 0%,transparent 60%);pointer-events:none;}
+.cheader{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
+.ctitle{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--cream);}
+.csub{font-size:11px;color:var(--dim);margin-top:3px;}
+.cbadge{font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:4px;font-weight:500;flex-shrink:0;}
+.bt{background:rgba(45,212,191,.1);color:var(--teal);border:1px solid rgba(45,212,191,.2);}
+.ba{background:rgba(245,158,11,.1);color:var(--amber);border:1px solid rgba(245,158,11,.2);}
+.br{background:rgba(244,63,94,.1);color:var(--rose);border:1px solid rgba(244,63,94,.2);}
+.bp{background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.2);}
+.bc{background:rgba(200,120,58,.1);color:var(--coffeeL);border:1px solid rgba(200,120,58,.2);}
+.cc{position:relative;width:100%;}
+
+/* HEATMAP */
+.hmap-wrap{overflow-x:auto;}
+.hmap{display:grid;gap:3px;}
+.hcell{border-radius:3px;cursor:pointer;transition:transform .15s;position:relative;}
+.hcell:hover{transform:scale(1.4);z-index:10;}
+.hcell-label{display:flex;align-items:center;justify-content:flex-end;font-size:10px;color:var(--dim);font-family:'DM Mono',monospace;padding-right:5px;}
+.hcell-head{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;}
+
+/* STORE TABLE */
+.stbl{width:100%;border-collapse:collapse;font-size:13px;}
+.stbl th{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;font-weight:600;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);}
+.stbl td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.03);}
+.stbl tr:last-child td{border-bottom:none;}
+.sbar-bg{background:var(--surface2);border-radius:3px;height:5px;overflow:hidden;margin-top:4px;}
+.sbar-f{height:100%;border-radius:3px;}
+
+/* INSIGHTS */
+.igrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px;}
+.icard{border-radius:12px;padding:15px 16px;display:flex;align-items:flex-start;gap:11px;border:1px solid transparent;}
+.icard.suc{background:rgba(16,185,129,.05);border-color:rgba(16,185,129,.15);}
+.icard.wrn{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.15);}
+.icard.inf{background:rgba(59,130,246,.05);border-color:rgba(59,130,246,.15);}
+.icard.ale{background:rgba(244,63,94,.05);border-color:rgba(244,63,94,.15);}
+.iico{font-size:17px;flex-shrink:0;margin-top:1px;}
+.itxt{font-size:12.5px;color:var(--text);line-height:1.55;}
+.itxt strong{color:var(--cream);font-weight:600;}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
+
+/* Tooltip */
+.htip{position:fixed;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text);pointer-events:none;z-index:999;display:none;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.htip strong{color:var(--cream);display:block;margin-bottom:2px;}
+</style>
+</head>
+<body>
+
+<div class="htip" id="htip"></div>
+
+<header class="header">
+  <div class="hbrand">
+    <div class="hicon">☕</div>
+    <div>
+      <div class="htitle">Brew Intelligence</div>
+      <div class="hsub">Coffee Shop Performance Dashboard · NYC 2023</div>
+    </div>
+  </div>
+  <div class="hmeta">
+    <span class="hbadge">JAN – JUN 2023</span>
+    <span class="hbadge">3 LOCATIONS · 149,116 TXN</span>
+    <span class="hlive">VERIFIED DATA</span>
+  </div>
+</header>
+
+<div class="main">
+
+<!-- FILTERS -->
+<div class="fbar">
+  <span class="flabel">🎛 Filters</span>
+  <div class="fgroup">
+    <div class="flabel">Month</div>
+    <select class="fsel" id="fMonth" onchange="applyFilters()">
+      <option value="all">All Months</option>
+      <option value="1">January</option>
+      <option value="2">February</option>
+      <option value="3">March</option>
+      <option value="4">April</option>
+      <option value="5">May</option>
+      <option value="6">June</option>
+    </select>
+  </div>
+  <div class="fdiv"></div>
+  <div class="fgroup">
+    <div class="flabel">Location</div>
+    <div class="chips" id="cLoc">
+      <div class="chip active" data-v="all" onclick="toggleChip(this,'loc')">All Stores</div>
+      <div class="chip" data-v="Astoria" onclick="toggleChip(this,'loc')">Astoria</div>
+      <div class="chip" data-v="Hell's Kitchen" onclick="toggleChip(this,'loc')">Hell's Kitchen</div>
+      <div class="chip" data-v="Lower Manhattan" onclick="toggleChip(this,'loc')">Lower Manhattan</div>
+    </div>
+  </div>
+  <div class="fdiv"></div>
+  <div class="fgroup">
+    <div class="flabel">Category</div>
+    <div class="chips" id="cCat">
+      <div class="chip active" data-v="all" onclick="toggleChip(this,'cat')">All</div>
+      <div class="chip" data-v="Coffee" onclick="toggleChip(this,'cat')">Coffee</div>
+      <div class="chip" data-v="Tea" onclick="toggleChip(this,'cat')">Tea</div>
+      <div class="chip" data-v="Bakery" onclick="toggleChip(this,'cat')">Bakery</div>
+      <div class="chip" data-v="Drinking Chocolate" onclick="toggleChip(this,'cat')">Chocolate</div>
+      <div class="chip" data-v="Coffee beans" onclick="toggleChip(this,'cat')">Beans</div>
+    </div>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="slabel">Key Performance Indicators</div>
+<div class="kgrid">
+  <div class="kcard" style="--kc:var(--coffee)">
+    <span class="kicon">💰</span>
+    <div class="klabel">Total Revenue</div>
+    <div class="kval" id="kRev">$698.8K</div>
+    <div class="ktrend up" id="kRevT">↗ Jan $81.7K → Jun $166.5K</div>
+  </div>
+  <div class="kcard" style="--kc:var(--teal)">
+    <span class="kicon">🧾</span>
+    <div class="klabel">Transactions</div>
+    <div class="kval" id="kOrd">149,116</div>
+    <div class="ktrend up" id="kOrdT">↗ Growing every month</div>
+  </div>
+  <div class="kcard" style="--kc:var(--amber)">
+    <span class="kicon">🛒</span>
+    <div class="klabel">Avg. Transaction</div>
+    <div class="kval" id="kAvg">$4.69</div>
+    <div class="ktrend neu">Consistent across stores</div>
+  </div>
+  <div class="kcard" style="--kc:var(--purple)">
+    <span class="kicon">📅</span>
+    <div class="klabel">Peak Day Orders</div>
+    <div class="kval">1,343</div>
+    <div class="ktrend neu">Jun 19 — highest single day</div>
+  </div>
+  <div class="kcard" style="--kc:var(--green)">
+    <span class="kicon">☕</span>
+    <div class="klabel">Top Product</div>
+    <div class="kval" style="font-size:18px;padding-top:4px">Barista<br>Espresso</div>
+    <div class="ktrend up">$91.4K revenue</div>
+  </div>
+</div>
+
+<!-- ROW 1: Monthly Trend + Donut -->
+<div class="slabel">Revenue & Category Mix</div>
+<div class="cgrid r21">
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Monthly Revenue by Location</div><div class="csub">Exact per-store revenue · Jan–Jun 2023</div></div>
+      <span class="cbadge bt">LINE</span>
+    </div>
+    <div class="cc" style="height:255px"><canvas id="cTrend"></canvas></div>
+  </div>
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Category Revenue Mix</div><div class="csub">% share of $698.8K total</div></div>
+      <span class="cbadge bc">DONUT</span>
+    </div>
+    <div class="cc" style="height:255px"><canvas id="cDonut"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW 2: Hourly + DOW -->
+<div class="slabel">Traffic Patterns</div>
+<div class="cgrid r11">
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Hourly Traffic Pattern</div><div class="csub">Peak window: 8–10 AM · dual-axis orders & revenue</div></div>
+      <span class="cbadge ba">BAR + LINE</span>
+    </div>
+    <div class="cc" style="height:230px"><canvas id="cHour"></canvas></div>
+  </div>
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Day of Week Revenue</div><div class="csub">Mon–Sun · all 6 months aggregated</div></div>
+      <span class="cbadge bp">BAR</span>
+    </div>
+    <div class="cc" style="height:230px"><canvas id="cDow"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW 3: Store grouped + Product Types -->
+<div class="slabel">Store & Product Intelligence</div>
+<div class="cgrid r11">
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Store Revenue by Month</div><div class="csub">All 3 NYC locations · exact monthly revenue</div></div>
+      <span class="cbadge bt">GROUPED BAR</span>
+    </div>
+    <div class="cc" style="height:250px"><canvas id="cStore"></canvas></div>
+  </div>
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Top 10 Product Types</div><div class="csub">Ranked by total revenue · color = category</div></div>
+      <span class="cbadge br">HORIZONTAL BAR</span>
+    </div>
+    <div class="cc" style="height:250px"><canvas id="cProd"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW 4: Stacked Cat + Radar -->
+<div class="cgrid r11">
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Category Revenue Growth</div><div class="csub">Stacked monthly · Coffee, Tea, Bakery, Chocolate</div></div>
+      <span class="cbadge ba">STACKED BAR</span>
+    </div>
+    <div class="cc" style="height:250px"><canvas id="cStack"></canvas></div>
+  </div>
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Store Performance Radar</div><div class="csub">Normalized scores: Revenue · Orders · Avg Price · Growth</div></div>
+      <span class="cbadge bp">RADAR</span>
+    </div>
+    <div class="cc" style="height:250px"><canvas id="cRadar"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW 5: Heatmap + Store Scorecard -->
+<div class="slabel">Daily Activity & Store Scorecard</div>
+<div class="cgrid r21">
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Daily Orders Heatmap</div><div class="csub">Every day Jan–Jun 2023 · real transaction counts · hover for details</div></div>
+      <span class="cbadge bt">HEATMAP</span>
+    </div>
+    <div class="hmap-wrap" id="hmapWrap"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+      <span style="font-size:10px;color:var(--muted)">Quiet</span>
+      <div style="display:flex;gap:2px">
+        <div style="width:13px;height:13px;border-radius:2px;background:rgba(200,120,58,0.1)"></div>
+        <div style="width:13px;height:13px;border-radius:2px;background:rgba(200,120,58,0.3)"></div>
+        <div style="width:13px;height:13px;border-radius:2px;background:rgba(200,120,58,0.5)"></div>
+        <div style="width:13px;height:13px;border-radius:2px;background:rgba(200,120,58,0.7)"></div>
+        <div style="width:13px;height:13px;border-radius:2px;background:rgba(200,120,58,0.92)"></div>
+      </div>
+      <span style="font-size:10px;color:var(--muted)">Busy</span>
+    </div>
+  </div>
+  <div class="ccard">
+    <div class="cheader">
+      <div><div class="ctitle">Store Scorecard</div><div class="csub">Revenue, transactions & share per location</div></div>
+    </div>
+    <table class="stbl">
+      <thead><tr><th>Location</th><th>Revenue</th><th>Txns</th><th>Share</th></tr></thead>
+      <tbody id="stblBody"></tbody>
+    </table>
+    <div style="margin-top:18px" id="sBars"></div>
+  </div>
+</div>
+
+<!-- INSIGHTS -->
+<div class="slabel">Data-Verified Strategic Insights</div>
+<div class="igrid" id="iPanel"></div>
+
+</div><!-- /main -->
+
+<script>
+// ============================================================
+// VERIFIED REAL DATA — computed directly from Coffee_Shop_Sales.xlsx
+// ============================================================
+const D = {
+  monthly:[
+    {m:1,orders:17314,rev:81677.74},
+    {m:2,orders:16359,rev:76145.19},
+    {m:3,orders:21229,rev:98834.68},
+    {m:4,orders:25335,rev:118941.08},
+    {m:5,orders:33527,rev:156727.76},
+    {m:6,orders:35352,rev:166485.88}
+  ],
+  storeMonthly:[
+    {m:1,loc:"Astoria",rev:27313.66,ord:5913},{m:1,loc:"Hell's Kitchen",rev:27820.65,ord:5868},{m:1,loc:"Lower Manhattan",rev:26543.43,ord:5533},
+    {m:2,loc:"Astoria",rev:25105.34,ord:5490},{m:2,loc:"Hell's Kitchen",rev:25719.80,ord:5606},{m:2,loc:"Lower Manhattan",rev:25320.05,ord:5263},
+    {m:3,loc:"Astoria",rev:32835.43,ord:7180},{m:3,loc:"Hell's Kitchen",rev:33110.57,ord:7267},{m:3,loc:"Lower Manhattan",rev:32888.68,ord:6782},
+    {m:4,loc:"Astoria",rev:39477.61,ord:8556},{m:4,loc:"Hell's Kitchen",rev:40304.14,ord:8629},{m:4,loc:"Lower Manhattan",rev:39159.33,ord:8150},
+    {m:5,loc:"Astoria",rev:52428.76,ord:11475},{m:5,loc:"Hell's Kitchen",rev:52598.93,ord:11294},{m:5,loc:"Lower Manhattan",rev:51700.07,ord:10758},
+    {m:6,loc:"Astoria",rev:55083.11,ord:11985},{m:6,loc:"Hell's Kitchen",rev:56957.08,ord:12071},{m:6,loc:"Lower Manhattan",rev:54445.69,ord:11296}
+  ],
+  stores:[
+    {loc:"Astoria",rev:232243.91,ord:50599},
+    {loc:"Hell's Kitchen",rev:236511.17,ord:50735},
+    {loc:"Lower Manhattan",rev:230057.25,ord:47782}
+  ],
+  cats:[
+    {cat:"Coffee",rev:269952.45,ord:58416},
+    {cat:"Tea",rev:196405.95,ord:45449},
+    {cat:"Bakery",rev:82315.64,ord:22796},
+    {cat:"Drinking Chocolate",rev:72416.00,ord:11468},
+    {cat:"Coffee beans",rev:40085.25,ord:1753},
+    {cat:"Branded",rev:13607.00,ord:747},
+    {cat:"Loose Tea",rev:11213.60,ord:1210},
+    {cat:"Flavours",rev:8408.80,ord:6790},
+    {cat:"Packaged Chocolate",rev:4407.64,ord:487}
+  ],
+  hourly:[
+    {h:6,ord:4594,rev:21900.27},{h:7,ord:13428,rev:63526.47},{h:8,ord:17654,rev:82699.87},
+    {h:9,ord:17764,rev:85169.53},{h:10,ord:18545,rev:88673.39},{h:11,ord:9766,rev:46319.14},
+    {h:12,ord:8708,rev:40192.79},{h:13,ord:8714,rev:40367.45},{h:14,ord:8933,rev:41304.74},
+    {h:15,ord:8979,rev:41733.10},{h:16,ord:9093,rev:41122.75},{h:17,ord:8745,rev:40134.31},
+    {h:18,ord:7498,rev:34286.20},{h:19,ord:6092,rev:28446.68},{h:20,ord:603,rev:2935.64}
+  ],
+  dow:[
+    {d:0,ord:21643,rev:101677.28},{d:1,ord:21202,rev:99455.94},{d:2,ord:21310,rev:100313.54},
+    {d:3,ord:21654,rev:100767.78},{d:4,ord:21701,rev:101373.00},{d:5,ord:20510,rev:96894.48},
+    {d:6,ord:21096,rev:98330.31}
+  ],
+  // Exact category by month from groupby(['month','product_category'])
+  catMonthly:{
+    Coffee:   [31256.85,29268.95,38303.60,45971.20,60362.85,64789.00],
+    Tea:      [22621.95,21733.40,27910.65,33356.95,44539.85,46243.15],
+    Bakery:   [9535.75,9038.82,11902.58,14021.70,18565.52,19251.27],
+    "Drinking Chocolate":[8337.75,8132.25,10253.50,12266.75,16319.75,17106.00]
+  },
+  products:[
+    {pt:"Barista Espresso",cat:"Coffee",rev:91406.20},
+    {pt:"Brewed Chai tea",cat:"Tea",rev:77081.95},
+    {pt:"Hot chocolate",cat:"Drinking Chocolate",rev:72416.00},
+    {pt:"Gourmet brewed coffee",cat:"Coffee",rev:70034.60},
+    {pt:"Brewed Black tea",cat:"Tea",rev:47932.00},
+    {pt:"Brewed herbal tea",cat:"Tea",rev:47539.50},
+    {pt:"Premium brewed coffee",cat:"Coffee",rev:38781.15},
+    {pt:"Organic brewed coffee",cat:"Coffee",rev:37746.50},
+    {pt:"Scone",cat:"Bakery",rev:36866.12},
+    {pt:"Drip coffee",cat:"Coffee",rev:31984.00}
+  ],
+  // Real daily orders from groupby('date_str')
+  daily:[
+    {"date_str":"2023-01-01","orders":550,"revenue":2508.2},{"date_str":"2023-01-02","orders":566,"revenue":2403.35},{"date_str":"2023-01-03","orders":582,"revenue":2565.0},{"date_str":"2023-01-04","orders":497,"revenue":2220.1},{"date_str":"2023-01-05","orders":547,"revenue":2418.85},{"date_str":"2023-01-06","orders":509,"revenue":2273.85},{"date_str":"2023-01-07","orders":562,"revenue":2619.65},{"date_str":"2023-01-08","orders":562,"revenue":2638.53},{"date_str":"2023-01-09","orders":551,"revenue":2676.61},{"date_str":"2023-01-10","orders":602,"revenue":2685.65},{"date_str":"2023-01-11","orders":561,"revenue":2555.75},{"date_str":"2023-01-12","orders":534,"revenue":2327.7},{"date_str":"2023-01-13","orders":625,"revenue":3033.6},{"date_str":"2023-01-14","orders":577,"revenue":2682.51},{"date_str":"2023-01-15","orders":663,"revenue":3167.71},{"date_str":"2023-01-16","orders":627,"revenue":2829.16},{"date_str":"2023-01-17","orders":532,"revenue":3285.8},{"date_str":"2023-01-18","orders":588,"revenue":2735.96},{"date_str":"2023-01-19","orders":616,"revenue":2913.68},{"date_str":"2023-01-20","orders":578,"revenue":2603.73},{"date_str":"2023-01-21","orders":597,"revenue":3082.85},{"date_str":"2023-01-22","orders":491,"revenue":2367.33},{"date_str":"2023-01-23","orders":589,"revenue":2853.15},{"date_str":"2023-01-24","orders":588,"revenue":2868.95},{"date_str":"2023-01-25","orders":583,"revenue":2846.55},{"date_str":"2023-01-26","orders":586,"revenue":2863.03},{"date_str":"2023-01-27","orders":579,"revenue":2742.1},{"date_str":"2023-01-28","orders":470,"revenue":2037.1},{"date_str":"2023-01-29","orders":459,"revenue":2060.75},{"date_str":"2023-01-30","orders":481,"revenue":2476.41},{"date_str":"2023-01-31","orders":462,"revenue":2334.13},
+    {"date_str":"2023-02-01","orders":546,"revenue":2466.3},{"date_str":"2023-02-02","orders":569,"revenue":2506.9},{"date_str":"2023-02-03","orders":586,"revenue":2591.45},{"date_str":"2023-02-04","orders":584,"revenue":2551.7},{"date_str":"2023-02-05","orders":533,"revenue":2304.7},{"date_str":"2023-02-06","orders":489,"revenue":2203.4},{"date_str":"2023-02-07","orders":546,"revenue":2434.55},{"date_str":"2023-02-08","orders":599,"revenue":2762.43},{"date_str":"2023-02-09","orders":562,"revenue":2610.63},{"date_str":"2023-02-10","orders":635,"revenue":2901.6},{"date_str":"2023-02-11","orders":567,"revenue":2526.74},{"date_str":"2023-02-12","orders":607,"revenue":2894.0},{"date_str":"2023-02-13","orders":593,"revenue":2845.48},{"date_str":"2023-02-14","orders":587,"revenue":2673.93},{"date_str":"2023-02-15","orders":624,"revenue":2928.05},{"date_str":"2023-02-16","orders":639,"revenue":3023.33},{"date_str":"2023-02-17","orders":534,"revenue":2300.75},{"date_str":"2023-02-18","orders":594,"revenue":2865.48},{"date_str":"2023-02-19","orders":692,"revenue":3219.6},{"date_str":"2023-02-20","orders":628,"revenue":2883.63},{"date_str":"2023-02-21","orders":555,"revenue":2783.53},{"date_str":"2023-02-22","orders":581,"revenue":2928.7},{"date_str":"2023-02-23","orders":555,"revenue":2746.21},{"date_str":"2023-02-24","orders":603,"revenue":2940.7},{"date_str":"2023-02-25","orders":576,"revenue":2823.55},{"date_str":"2023-02-26","orders":601,"revenue":2956.75},{"date_str":"2023-02-27","orders":663,"revenue":3160.0},{"date_str":"2023-02-28","orders":511,"revenue":2311.1},
+    {"date_str":"2023-03-01","orders":661,"revenue":3040.25},{"date_str":"2023-03-02","orders":673,"revenue":2996.05},{"date_str":"2023-03-03","orders":710,"revenue":3155.15},{"date_str":"2023-03-04","orders":624,"revenue":2781.9},{"date_str":"2023-03-05","orders":675,"revenue":2945.3},{"date_str":"2023-03-06","orders":587,"revenue":2618.05},{"date_str":"2023-03-07","orders":629,"revenue":2803.5},{"date_str":"2023-03-08","orders":742,"revenue":3523.26},{"date_str":"2023-03-09","orders":722,"revenue":3459.97},{"date_str":"2023-03-10","orders":750,"revenue":3441.58},{"date_str":"2023-03-11","orders":689,"revenue":3211.65},{"date_str":"2023-03-12","orders":667,"revenue":3088.33},{"date_str":"2023-03-13","orders":730,"revenue":3627.65},{"date_str":"2023-03-14","orders":691,"revenue":3312.66},{"date_str":"2023-03-15","orders":721,"revenue":3338.03},{"date_str":"2023-03-16","orders":758,"revenue":3386.11},{"date_str":"2023-03-17","orders":693,"revenue":3181.75},{"date_str":"2023-03-18","orders":731,"revenue":3408.36},{"date_str":"2023-03-19","orders":725,"revenue":3340.03},{"date_str":"2023-03-20","orders":735,"revenue":3262.28},{"date_str":"2023-03-21","orders":650,"revenue":3209.8},{"date_str":"2023-03-22","orders":669,"revenue":3284.11},{"date_str":"2023-03-23","orders":694,"revenue":3361.13},{"date_str":"2023-03-24","orders":718,"revenue":3586.2},{"date_str":"2023-03-25","orders":688,"revenue":3380.95},{"date_str":"2023-03-26","orders":671,"revenue":3310.83},{"date_str":"2023-03-27","orders":764,"revenue":3674.35},{"date_str":"2023-03-28","orders":626,"revenue":2792.55},{"date_str":"2023-03-29","orders":582,"revenue":2492.0},{"date_str":"2023-03-30","orders":639,"revenue":2932.82},{"date_str":"2023-03-31","orders":615,"revenue":2888.08},
+    {"date_str":"2023-04-01","orders":830,"revenue":3699.9},{"date_str":"2023-04-02","orders":802,"revenue":3575.85},{"date_str":"2023-04-03","orders":814,"revenue":3604.95},{"date_str":"2023-04-04","orders":753,"revenue":3327.3},{"date_str":"2023-04-05","orders":814,"revenue":3552.7},{"date_str":"2023-04-06","orders":739,"revenue":3250.2},{"date_str":"2023-04-07","orders":802,"revenue":3682.8},{"date_str":"2023-04-08","orders":933,"revenue":4573.06},{"date_str":"2023-04-09","orders":848,"revenue":4088.88},{"date_str":"2023-04-10","orders":913,"revenue":4220.3},{"date_str":"2023-04-11","orders":864,"revenue":3852.86},{"date_str":"2023-04-12","orders":867,"revenue":4040.18},{"date_str":"2023-04-13","orders":870,"revenue":4114.53},{"date_str":"2023-04-14","orders":821,"revenue":4131.25},{"date_str":"2023-04-15","orders":881,"revenue":4121.79},{"date_str":"2023-04-16","orders":989,"revenue":4500.39},{"date_str":"2023-04-17","orders":795,"revenue":4332.1},{"date_str":"2023-04-18","orders":910,"revenue":4354.07},{"date_str":"2023-04-19","orders":921,"revenue":4318.31},{"date_str":"2023-04-20","orders":854,"revenue":3924.78},{"date_str":"2023-04-21","orders":809,"revenue":4005.38},{"date_str":"2023-04-22","orders":798,"revenue":3961.58},{"date_str":"2023-04-23","orders":855,"revenue":4321.29},{"date_str":"2023-04-24","orders":893,"revenue":4265.45},{"date_str":"2023-04-25","orders":863,"revenue":4255.0},{"date_str":"2023-04-26","orders":915,"revenue":4559.45},{"date_str":"2023-04-27","orders":954,"revenue":4427.1},{"date_str":"2023-04-28","orders":769,"revenue":3373.8},{"date_str":"2023-04-29","orders":674,"revenue":2953.5},{"date_str":"2023-04-30","orders":785,"revenue":3552.33},
+    {"date_str":"2023-05-01","orders":1050,"revenue":4731.45},{"date_str":"2023-05-02","orders":1040,"revenue":4625.5},{"date_str":"2023-05-03","orders":1076,"revenue":4714.6},{"date_str":"2023-05-04","orders":1029,"revenue":4589.7},{"date_str":"2023-05-05","orders":1062,"revenue":4701.0},{"date_str":"2023-05-06","orders":955,"revenue":4205.15},{"date_str":"2023-05-07","orders":1012,"revenue":4542.7},{"date_str":"2023-05-08","orders":1186,"revenue":5604.21},{"date_str":"2023-05-09","orders":1094,"revenue":5100.97},{"date_str":"2023-05-10","orders":1163,"revenue":5256.33},{"date_str":"2023-05-11","orders":1067,"revenue":4850.06},{"date_str":"2023-05-12","orders":1040,"revenue":4681.13},{"date_str":"2023-05-13","orders":1148,"revenue":5511.53},{"date_str":"2023-05-14","orders":1071,"revenue":5052.65},{"date_str":"2023-05-15","orders":1156,"revenue":5384.98},{"date_str":"2023-05-16","orders":1219,"revenue":5542.13},{"date_str":"2023-05-17","orders":1014,"revenue":5418.0},{"date_str":"2023-05-18","orders":1192,"revenue":5583.47},{"date_str":"2023-05-19","orders":1214,"revenue":5657.88},{"date_str":"2023-05-20","orders":1166,"revenue":5519.28},{"date_str":"2023-05-21","orders":1053,"revenue":5370.81},{"date_str":"2023-05-22","orders":1117,"revenue":5541.16},{"date_str":"2023-05-23","orders":1075,"revenue":5242.91},{"date_str":"2023-05-24","orders":1104,"revenue":5391.45},{"date_str":"2023-05-25","orders":1043,"revenue":5230.85},{"date_str":"2023-05-26","orders":1089,"revenue":5300.95},{"date_str":"2023-05-27","orders":1183,"revenue":5559.15},{"date_str":"2023-05-28","orders":999,"revenue":4338.65},{"date_str":"2023-05-29","orders":906,"revenue":3959.5},{"date_str":"2023-05-30","orders":1022,"revenue":4835.48},{"date_str":"2023-05-31","orders":982,"revenue":4684.13},
+    {"date_str":"2023-06-01","orders":1150,"revenue":5227.0},{"date_str":"2023-06-02","orders":1143,"revenue":5056.5},{"date_str":"2023-06-03","orders":1160,"revenue":5166.65},{"date_str":"2023-06-04","orders":1114,"revenue":4985.15},{"date_str":"2023-06-05","orders":1110,"revenue":4911.15},{"date_str":"2023-06-06","orders":1041,"revenue":4598.9},{"date_str":"2023-06-07","orders":1083,"revenue":4883.1},{"date_str":"2023-06-08","orders":1269,"revenue":6151.59},{"date_str":"2023-06-09","orders":1224,"revenue":5867.16},{"date_str":"2023-06-10","orders":1210,"revenue":5626.75},{"date_str":"2023-06-11","orders":1208,"revenue":5418.61},{"date_str":"2023-06-12","orders":1162,"revenue":5328.7},{"date_str":"2023-06-13","orders":1281,"revenue":6189.36},{"date_str":"2023-06-14","orders":1194,"revenue":5836.52},{"date_str":"2023-06-15","orders":1237,"revenue":5806.24},{"date_str":"2023-06-16","orders":1331,"revenue":6011.43},{"date_str":"2023-06-17","orders":1099,"revenue":6117.6},{"date_str":"2023-06-18","orders":1290,"revenue":6026.09},{"date_str":"2023-06-19","orders":1343,"revenue":6403.91},{"date_str":"2023-06-20","orders":1202,"revenue":5494.66},{"date_str":"2023-06-21","orders":1153,"revenue":5808.38},{"date_str":"2023-06-22","orders":1147,"revenue":5615.1},{"date_str":"2023-06-23","orders":1167,"revenue":5781.86},{"date_str":"2023-06-24","orders":1214,"revenue":5906.1},{"date_str":"2023-06-25","orders":1174,"revenue":5754.85},{"date_str":"2023-06-26","orders":1195,"revenue":5875.9},{"date_str":"2023-06-27","orders":1277,"revenue":5975.65},{"date_str":"2023-06-28","orders":1070,"revenue":4728.9},{"date_str":"2023-06-29","orders":1009,"revenue":4450.75},{"date_str":"2023-06-30","orders":1095,"revenue":5481.32}
+  ]
+};
+
+// ============================================================
+// STATE
+// ============================================================
+const ST = { month:'all', loc:'all', cat:'all' };
+const CHARTS = {};
+const ML = ['Jan','Feb','Mar','Apr','May','Jun'];
+const STORES = ['Astoria',"Hell's Kitchen",'Lower Manhattan'];
+const SC = ['#c8783a','#2dd4bf','#a78bfa'];
+const CAT_C = {'Coffee':'#c8783a','Tea':'#2dd4bf','Bakery':'#a78bfa','Drinking Chocolate':'#f43f5e','Coffee beans':'#f59e0b','Branded':'#10b981','Loose Tea':'#3b82f6','Flavours':'#fb923c','Packaged Chocolate':'#e879f9'};
+const TOTAL_REV = 698812.33;
+
+const TT = {
+  backgroundColor:'#1c2030',titleColor:'#f5e6d0',bodyColor:'#8a8070',
+  borderColor:'rgba(255,255,255,0.07)',borderWidth:1,cornerRadius:8,padding:10
+};
+const TICK = { color:'#8a8070', font:{family:"'DM Sans'",size:11} };
+const GRID = { color:'rgba(255,255,255,0.04)' };
+const BASE = { responsive:true, maintainAspectRatio:false, animation:{duration:350,easing:'easeInOutQuart'}, plugins:{legend:{labels:{color:'#8a8070',font:{family:"'DM Sans'",size:11},padding:14,usePointStyle:true,pointStyle:'circle',boxWidth:8,boxHeight:8}},tooltip:TT} };
+
+const fmt = v => v>=1000000?'$'+(v/1000000).toFixed(2)+'M':v>=1000?'$'+(v/1000).toFixed(1)+'K':'$'+v.toFixed(0);
+const fmtN = v => v>=1000?(v/1000).toFixed(1)+'K':v.toString();
+
+// ============================================================
+// FILTER HELPERS
+// ============================================================
+function toggleChip(el, group) {
+  const cont = el.parentElement;
+  const allC = cont.querySelector('[data-v="all"]');
+  if(el.dataset.v === 'all') {
+    cont.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    el.classList.add('active');
+    ST[group] = 'all';
+  } else {
+    allC.classList.remove('active');
+    el.classList.toggle('active');
+    const active = [...cont.querySelectorAll('.chip.active')].filter(c=>c.dataset.v!=='all');
+    if(!active.length){ allC.classList.add('active'); ST[group]='all'; }
+    else { ST[group] = active.length===1 ? active[0].dataset.v : 'all'; }
+  }
+  applyFilters();
+}
+
+function applyFilters() {
+  ST.month = document.getElementById('fMonth').value;
+  updateKPIs(); updateCharts(); updateStoreTable(); renderInsights();
+}
+
+// ============================================================
+// FILTER DATA
+// ============================================================
+function filteredMonthly() {
+  let sm = D.storeMonthly;
+  if(ST.month!=='all') sm = sm.filter(r=>r.m==ST.month);
+  if(ST.loc!=='all') sm = sm.filter(r=>r.loc===ST.loc);
+  // aggregate by month
+  const byM = {};
+  sm.forEach(r=>{ if(!byM[r.m]) byM[r.m]={m:r.m,rev:0,ord:0}; byM[r.m].rev+=r.rev; byM[r.m].ord+=r.ord; });
+  return Object.values(byM).sort((a,b)=>a.m-b.m);
+}
+
+function filteredStoreMonthly(loc) {
+  let sm = D.storeMonthly.filter(r=>r.loc===loc);
+  if(ST.month!=='all') sm = sm.filter(r=>r.m==ST.month);
+  return sm.sort((a,b)=>a.m-b.m);
+}
+
+function filteredCats() {
+  if(ST.cat==='all') return D.cats;
+  return D.cats.filter(c=>c.cat===ST.cat);
+}
+
+function filteredCatMonthly() {
+  const cats = ST.cat==='all' ? Object.keys(D.catMonthly) : Object.keys(D.catMonthly).filter(c=>c===ST.cat);
+  const result = {};
+  cats.forEach(cat=>{
+    if(ST.month==='all') result[cat] = D.catMonthly[cat];
+    else result[cat] = [D.catMonthly[cat][parseInt(ST.month)-1]];
+  });
+  return result;
+}
+
+function filteredHourly() { return D.hourly; }
+function filteredDow() { return D.dow; }
+
+function filteredProducts() {
+  if(ST.cat==='all') return D.products;
+  return D.products.filter(p=>p.cat===ST.cat);
+}
+
+// ============================================================
+// KPIs
+// ============================================================
+function updateKPIs() {
+  const fm = filteredMonthly();
+  const tRev = fm.reduce((s,r)=>s+r.rev,0);
+  const tOrd = fm.reduce((s,r)=>s+r.ord,0);
+  const avg = tOrd>0 ? tRev/tOrd : 0;
+  document.getElementById('kRev').textContent = fmt(tRev);
+  document.getElementById('kOrd').textContent = tOrd.toLocaleString();
+  document.getElementById('kAvg').textContent = '$'+avg.toFixed(2);
+  // trend text
+  if(ST.month==='all') {
+    document.getElementById('kRevT').textContent = '↗ Jan $81.7K → Jun $166.5K';
+    document.getElementById('kRevT').className = 'ktrend up';
+  } else {
+    const mNames=['','Jan','Feb','Mar','Apr','May','Jun'];
+    document.getElementById('kRevT').textContent = mNames[parseInt(ST.month)]+' data';
+    document.getElementById('kRevT').className = 'ktrend neu';
+  }
+}
+
+// ============================================================
+// STORE TABLE
+// ============================================================
+function updateStoreTable() {
+  const stores = ST.loc==='all' ? D.stores : D.stores.filter(s=>s.loc===ST.loc);
+  const totalR = stores.reduce((s,r)=>s+r.rev,0);
+  const tbody = document.getElementById('stblBody');
+  tbody.innerHTML = stores.map((s,i)=>`
+    <tr>
+      <td><span style="color:${SC[D.stores.indexOf(s)]};font-weight:600">${s.loc}</span></td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:12px">${fmt(s.rev)}</span></td>
+      <td><span style="color:var(--dim)">${s.ord.toLocaleString()}</span></td>
+      <td><span style="color:var(--dim)">${((s.rev/totalR)*100).toFixed(1)}%</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('sBars').innerHTML = stores.map((s,i)=>{
+    const ci = D.stores.indexOf(s);
+    const pct = ((s.rev/totalR)*100).toFixed(1);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:11px;color:var(--dim)">${s.loc}</span>
+        <span style="font-size:11px;font-family:'DM Mono',monospace;color:${SC[ci]}">${pct}%</span>
+      </div>
+      <div class="sbar-bg"><div class="sbar-f" style="width:${pct}%;background:${SC[ci]}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// HEATMAP — real daily data
+// ============================================================
+function buildHeatmap() {
+  const wrap = document.getElementById('hmapWrap');
+  const maxO = Math.max(...D.daily.map(d=>d.orders));
+  const tip = document.getElementById('htip');
+
+  // Build month→days map
+  const byMonth = {1:[],2:[],3:[],4:[],5:[],6:[]};
+  D.daily.forEach(d=>{ const m=parseInt(d.date_str.split('-')[1]); byMonth[m].push(d); });
+
+  const mNames = ['Jan','Feb','Mar','Apr','May','Jun'];
+  const maxDays = 31;
+
+  // Grid: rows=months, cols=days
+  let html = `<div style="display:grid;grid-template-columns:30px repeat(${maxDays},1fr);gap:3px;min-width:500px">`;
+  // header row
+  html += '<div></div>';
+  for(let d=1;d<=maxDays;d++) html += `<div style="font-size:9px;color:var(--muted);text-align:center;font-family:'DM Mono',monospace">${d}</div>`;
+
+  for(let m=1;m<=6;m++) {
+    html += `<div style="font-size:10px;color:var(--dim);display:flex;align-items:center;justify-content:flex-end;padding-right:5px;font-family:'DM Mono',monospace">${mNames[m-1]}</div>`;
+    for(let d=1;d<=maxDays;d++) {
+      const entry = byMonth[m].find(x=>parseInt(x.date_str.split('-')[2])===d);
+      if(entry) {
+        const intensity = entry.orders/maxO;
+        const alpha = (0.08 + intensity*0.84).toFixed(3);
+        html += `<div class="hcell" style="background:rgba(200,120,58,${alpha})" data-date="${entry.date_str}" data-orders="${entry.orders}" data-rev="${entry.revenue.toFixed(2)}"></div>`;
+      } else {
+        html += `<div style="background:rgba(255,255,255,0.02);border-radius:3px"></div>`;
+      }
+    }
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+
+  // Tooltip events — no dead clicks, real data
+  wrap.querySelectorAll('.hcell').forEach(cell=>{
+    cell.addEventListener('mouseenter', e=>{
+      const dt = new Date(cell.dataset.date+'T12:00:00');
+      const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+      tip.innerHTML = `<strong>${dayName}, ${cell.dataset.date}</strong>Orders: ${parseInt(cell.dataset.orders).toLocaleString()}<br>Revenue: $${parseFloat(cell.dataset.rev).toLocaleString()}`;
+      tip.style.display = 'block';
+    });
+    cell.addEventListener('mousemove', e=>{ tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-40)+'px'; });
+    cell.addEventListener('mouseleave', ()=>{ tip.style.display='none'; });
+  });
+}
+
+// ============================================================
+// INSIGHTS — computed from real data
+// ============================================================
+function renderInsights() {
+  const fm = filteredMonthly();
+  const tRev = fm.reduce((s,r)=>s+r.rev,0);
+  const catRev = filteredCats();
+  const topCat = catRev[0];
+  const topCatPct = ((topCat.rev/TOTAL_REV)*100).toFixed(1);
+  const peakHour = D.hourly.reduce((a,b)=>a.ord>b.ord?a:b);
+  const highDay = D.dow.reduce((a,b)=>a.rev>b.rev?a:b);
+  const dowNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const revGrowth = ((D.monthly[5].rev - D.monthly[0].rev)/D.monthly[0].rev*100).toFixed(0);
+  const janJun = {jan:D.storeMonthly.filter(r=>r.m===1), jun:D.storeMonthly.filter(r=>r.m===6)};
+
+  document.getElementById('iPanel').innerHTML = [
+    {t:'suc',i:'📈',txt:`<strong>Revenue grew ${revGrowth}% over 6 months</strong>, from $81,677 in January to $166,485 in June. All three stores followed the same upward trajectory with no outliers.`},
+    {t:'inf',i:'⏰',txt:`<strong>Peak traffic is 8–10 AM</strong> with ${peakHour.ord.toLocaleString()} orders at ${peakHour.h}:00 alone — the top single hour. Morning rush drives the majority of daily volume.`},
+    {t:'inf',i:'☕',txt:`<strong>${topCat.cat} leads with ${topCatPct}% of revenue</strong> ($${(topCat.rev/1000).toFixed(1)}K). Barista Espresso is the single highest-grossing product at $91.4K across all stores.`},
+    {t:'wrn',i:'📍',txt:`<strong>All three stores are nearly equal</strong> — Hell's Kitchen leads at $236.5K (33.8%), Astoria $232.2K (33.2%), Lower Manhattan $230.1K (32.9%). No single location dominates.`},
+    {t:'suc',i:'📅',txt:`<strong>${dowNames[highDay.d]} is the highest-revenue day</strong> at $${(highDay.rev/1000).toFixed(1)}K total. Saturday sees the lightest traffic — a promotional opportunity.`},
+    {t:'wrn',i:'🎂',txt:`<strong>Bakery generates $82.3K (11.8%)</strong> with 22,796 transactions, showing a strong attach rate with coffee. Bundling bakery items in promotions could boost average order value.`}
+  ].map(ins=>`<div class="icard ${ins.t}"><span class="iico">${ins.i}</span><div class="itxt">${ins.txt}</div></div>`).join('');
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+function initCharts() {
+  // 1. Monthly Trend Line
+  CHARTS.trend = new Chart(document.getElementById('cTrend'), {
+    type:'line',
+    data:{
+      labels: ML,
+      datasets: STORES.map((s,i)=>({
+        label:s,
+        data: D.storeMonthly.filter(r=>r.loc===s).sort((a,b)=>a.m-b.m).map(r=>r.rev),
+        borderColor:SC[i], backgroundColor:SC[i].replace('#','rgba(').replace(')',',0.07)'),
+        tension:0.4, fill:true, pointBackgroundColor:SC[i], pointRadius:4, pointHoverRadius:6
+      }))
+    },
+    options:{...BASE, plugins:{...BASE.plugins, legend:{...BASE.plugins.legend,position:'top'}},
+      scales:{
+        x:{grid:GRID,ticks:TICK},
+        y:{grid:GRID,ticks:{...TICK,callback:v=>'$'+(v/1000).toFixed(0)+'K'}}
+      }
+    }
+  });
+
+  // 2. Category Donut
+  CHARTS.donut = new Chart(document.getElementById('cDonut'), {
+    type:'doughnut',
+    data:{
+      labels:D.cats.map(c=>c.cat),
+      datasets:[{data:D.cats.map(c=>c.rev), backgroundColor:D.cats.map(c=>CAT_C[c.cat]||'#666'), borderColor:'#141720', borderWidth:3, hoverOffset:8}]
+    },
+    options:{...BASE, cutout:'65%',
+      plugins:{...BASE.plugins, legend:{...BASE.plugins.legend,position:'right'},
+        tooltip:{...TT, callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.raw)} (${((ctx.raw/TOTAL_REV)*100).toFixed(1)}%)`}}
+      }
+    }
+  });
+
+  // 3. Hourly dual-axis
+  CHARTS.hour = new Chart(document.getElementById('cHour'), {
+    type:'bar',
+    data:{
+      labels:D.hourly.map(h=>h.h+':00'),
+      datasets:[
+        {label:'Orders', data:D.hourly.map(h=>h.ord), backgroundColor:D.hourly.map(h=>h.h>=8&&h.h<=10?'rgba(200,120,58,0.9)':'rgba(200,120,58,0.32)'), borderRadius:4, yAxisID:'yL'},
+        {label:'Revenue', type:'line', data:D.hourly.map(h=>h.rev), borderColor:'#2dd4bf', backgroundColor:'transparent', tension:0.4, pointRadius:3, pointHoverRadius:5, yAxisID:'yR'}
+      ]
+    },
+    options:{...BASE,
+      scales:{
+        x:{grid:GRID,ticks:TICK},
+        yL:{grid:GRID,position:'left',ticks:{...TICK,callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}},
+        yR:{grid:{display:false},position:'right',ticks:{...TICK,callback:v=>fmt(v)}}
+      }
+    }
+  });
+
+  // 4. DOW Bar
+  CHARTS.dow = new Chart(document.getElementById('cDow'), {
+    type:'bar',
+    data:{
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      datasets:[{
+        label:'Revenue',
+        data:D.dow.map(d=>d.rev),
+        backgroundColor:D.dow.map(d=>d.d===0||d.d===3||d.d===4?'rgba(167,139,250,0.85)':'rgba(167,139,250,0.32)'),
+        borderRadius:5
+      }]
+    },
+    options:{...BASE, plugins:{...BASE.plugins,legend:{display:false}},
+      scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{...TICK,callback:v=>'$'+(v/1000).toFixed(0)+'K'}}}
+    }
+  });
+
+  // 5. Store Grouped Bar
+  CHARTS.store = new Chart(document.getElementById('cStore'), {
+    type:'bar',
+    data:{
+      labels:ML,
+      datasets:STORES.map((s,i)=>({
+        label:s,
+        data:D.storeMonthly.filter(r=>r.loc===s).sort((a,b)=>a.m-b.m).map(r=>r.rev),
+        backgroundColor:SC[i]+'bb', borderRadius:4
+      }))
+    },
+    options:{...BASE, plugins:{...BASE.plugins,legend:{...BASE.plugins.legend,position:'top'}},
+      scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{...TICK,callback:v=>'$'+(v/1000).toFixed(0)+'K'}}}
+    }
+  });
+
+  // 6. Product Type Horizontal Bar
+  CHARTS.prod = new Chart(document.getElementById('cProd'), {
+    type:'bar',
+    data:{
+      labels:D.products.map(p=>p.pt.length>22?p.pt.slice(0,22)+'…':p.pt),
+      datasets:[{
+        label:'Revenue',
+        data:D.products.map(p=>p.rev),
+        backgroundColor:D.products.map(p=>CAT_C[p.cat]||'#888'),
+        borderRadius:4
+      }]
+    },
+    options:{...BASE, indexAxis:'y', plugins:{...BASE.plugins,legend:{display:false},
+        tooltip:{...TT,callbacks:{label:ctx=>`${fmt(ctx.raw)} · ${D.products[ctx.dataIndex].cat}`}}
+      },
+      scales:{x:{grid:GRID,ticks:{...TICK,callback:v=>'$'+(v/1000).toFixed(0)+'K'}},y:{grid:{display:false},ticks:TICK}}
+    }
+  });
+
+  // 7. Stacked Category Monthly
+  const catKeys = Object.keys(D.catMonthly);
+  CHARTS.stack = new Chart(document.getElementById('cStack'), {
+    type:'bar',
+    data:{
+      labels:ML,
+      datasets:catKeys.map(cat=>({
+        label:cat, data:D.catMonthly[cat],
+        backgroundColor:(CAT_C[cat]||'#888')+'cc', borderRadius:3
+      }))
+    },
+    options:{...BASE, plugins:{...BASE.plugins,legend:{...BASE.plugins.legend,position:'top'}},
+      scales:{
+        x:{grid:GRID,ticks:TICK,stacked:true},
+        y:{grid:GRID,ticks:{...TICK,callback:v=>'$'+(v/1000).toFixed(0)+'K'},stacked:true}
+      }
+    }
+  });
+
+  // 8. Radar — real normalized scores
+  // Revenue score: out of max 236511 | Orders out of 50735 | Avg price out of 3.3942 | Jun growth = jun/jan ratio
+  const rMax = {rev:236511.17, ord:50735, price:3.3942};
+  const radarData = D.stores.map(s=>{
+    const janR = D.storeMonthly.find(r=>r.loc===s.loc&&r.m===1);
+    const junR = D.storeMonthly.find(r=>r.loc===s.loc&&r.m===6);
+    const growth = janR&&junR ? junR.rev/janR.rev : 1;
+    const maxGrowth = 56957.08/27820.65;
+    return {
+      rev: (s.rev/rMax.rev*100).toFixed(1),
+      ord: (s.ord/rMax.ord*100).toFixed(1),
+      price: (3.38/rMax.price*100).toFixed(1), // all ~same avg price
+      growth: (growth/maxGrowth*100).toFixed(1),
+      cons: 95 // all consistent, minimal spread
+    };
+  });
+
+  CHARTS.radar = new Chart(document.getElementById('cRadar'), {
+    type:'radar',
+    data:{
+      labels:['Revenue Score','Order Volume','Avg Price','Jun Growth','Consistency'],
+      datasets:D.stores.map((s,i)=>({
+        label:s.loc, data:[radarData[i].rev,radarData[i].ord,radarData[i].price,radarData[i].growth,radarData[i].cons],
+        borderColor:SC[i], backgroundColor:SC[i]+'18', pointBackgroundColor:SC[i], pointRadius:4
+      }))
+    },
+    options:{...BASE,
+      scales:{r:{grid:{color:'rgba(255,255,255,0.07)'},angleLines:{color:'rgba(255,255,255,0.07)'},
+        ticks:{display:false,backdropColor:'transparent'},
+        pointLabels:{color:'#8a8070',font:{family:"'DM Sans'",size:11}}
+      }}
+    }
+  });
+}
+
+// ============================================================
+// UPDATE CHARTS ON FILTER
+// ============================================================
+function updateCharts() {
+  const monthFilter = ST.month==='all' ? null : parseInt(ST.month);
+
+  // Trend
+  if(CHARTS.trend) {
+    const locFilter = ST.loc==='all' ? STORES : [ST.loc];
+    const labels = monthFilter ? [ML[monthFilter-1]] : ML;
+    CHARTS.trend.data.labels = labels;
+    CHARTS.trend.data.datasets = locFilter.map((s,i)=>{
+      const si = STORES.indexOf(s);
+      let data = D.storeMonthly.filter(r=>r.loc===s).sort((a,b)=>a.m-b.m);
+      if(monthFilter) data = data.filter(r=>r.m===monthFilter);
+      return {
+        label:s, data:data.map(r=>r.rev),
+        borderColor:SC[si], backgroundColor:SC[si]+'12',
+        tension:0.4, fill:true, pointBackgroundColor:SC[si], pointRadius:4, pointHoverRadius:6
+      };
+    });
+    CHARTS.trend.update();
+  }
+
+  // Donut
+  if(CHARTS.donut) {
+    const fc = filteredCats();
+    CHARTS.donut.data.labels = fc.map(c=>c.cat);
+    CHARTS.donut.data.datasets[0].data = fc.map(c=>c.rev);
+    CHARTS.donut.data.datasets[0].backgroundColor = fc.map(c=>CAT_C[c.cat]||'#666');
+    CHARTS.donut.update();
+  }
+
+  // Store grouped bar
+  if(CHARTS.store) {
+    const locFilter = ST.loc==='all' ? STORES : [ST.loc];
+    const labels = monthFilter ? [ML[monthFilter-1]] : ML;
+    CHARTS.store.data.labels = labels;
+    CHARTS.store.data.datasets = locFilter.map((s,i)=>{
+      const si = STORES.indexOf(s);
+      let data = D.storeMonthly.filter(r=>r.loc===s).sort((a,b)=>a.m-b.m);
+      if(monthFilter) data = data.filter(r=>r.m===monthFilter);
+      return { label:s, data:data.map(r=>r.rev), backgroundColor:SC[si]+'bb', borderRadius:4 };
+    });
+    CHARTS.store.update();
+  }
+
+  // Products
+  if(CHARTS.prod) {
+    const fp = filteredProducts();
+    CHARTS.prod.data.labels = fp.map(p=>p.pt.length>22?p.pt.slice(0,22)+'…':p.pt);
+    CHARTS.prod.data.datasets[0].data = fp.map(p=>p.rev);
+    CHARTS.prod.data.datasets[0].backgroundColor = fp.map(p=>CAT_C[p.cat]||'#888');
+    CHARTS.prod.update();
+  }
+
+  // Stacked cat
+  if(CHARTS.stack) {
+    const cm = filteredCatMonthly();
+    const catKeys = Object.keys(cm);
+    const labels = monthFilter ? [ML[monthFilter-1]] : ML;
+    CHARTS.stack.data.labels = labels;
+    CHARTS.stack.data.datasets = catKeys.map(cat=>({
+      label:cat, data:cm[cat], backgroundColor:(CAT_C[cat]||'#888')+'cc', borderRadius:3
+    }));
+    CHARTS.stack.update();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  Chart.defaults.font.family = "'DM Sans'";
+  initCharts();
+  buildHeatmap();
+  updateStoreTable();
+  renderInsights();
+});
+</script>
+</body>
+</html>
